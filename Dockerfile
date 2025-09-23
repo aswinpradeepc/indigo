@@ -1,58 +1,82 @@
 FROM ubuntu:22.04
 
-# NOTE: This is an example Dockerfile for getting Indigo running in a simple way.
-#       In production, you will probably want to use this as a template and make
-#       your own changes.
-#
-#       For example, you probably want to use gunicorn to host the Django app,
-#       rather than the built-in Django server.
+# NOTE: Optimized for Azure Container Registry and Azure App Service deployment
 
-# Install some necessary dependencies.
+# Install system dependencies
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y wget git \
-  # python
-  python3 python3-pip libpq-dev python-is-python3 \
-  # pdftotext and ps2pdf
-  poppler-utils ghostscript \
-  # for fop
-  default-jre
+RUN apt-get update && apt-get install -y \
+    wget git curl \
+    # Python and PostgreSQL dependencies
+    python3 python3-pip python-is-python3 \
+    libpq-dev postgresql-client \
+    build-essential \
+    # PDF processing
+    poppler-utils ghostscript \
+    # Java for FOP
+    default-jre \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Install Node.js 20.x (Current LTS, best Azure App Service support)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 # Download and install FOP
-RUN wget -q -O fop.tgz 'http://www.apache.org/dyn/closer.cgi?filename=/xmlgraphics/fop/binaries/fop-2.4-bin.tar.gz&action=download' && \
-    tar zxf fop.tgz && \
-    rm -f fop.tgz && \
-    mv fop-2.4 /usr/local/share
+RUN wget -q -O fop.tgz 'http://www.apache.org/dyn/closer.cgi?filename=/xmlgraphics/fop/binaries/fop-2.4-bin.tar.gz&action=download' \
+    && tar zxf fop.tgz \
+    && rm -f fop.tgz \
+    && mv fop-2.4 /usr/local/share
 
 ENV PATH=/usr/local/share/fop-2.4/fop:$PATH
 
-# node
-RUN curl -sL https://deb.nodesource.com/setup_18.x | bash -
-RUN apt-get install -y nodejs
-# install sass for compiling assets before deploying
-RUN npm i -g sass
-
 WORKDIR /app
 
-# install runtime node dependencies
-# copying this in first means Docker can cache this operation
-COPY package*.json /app/
-RUN npm ci --no-audit --ignore-scripts --omit=dev
+# Copy package files for better Docker layer caching
+COPY package*.json ./
 
-# Bring pip up to date; pip <= 22 (the default on ubuntu 22.04) is not supported
+RUN npm install
+
+# Install Node.js dependencies (including sass locally)
+RUN npm ci --no-audit --ignore-scripts --omit=dev \
+    && npm install sass --save-dev \
+    && npm cache clean --force
+
+# Add node_modules/.bin to PATH so Django can find sass
+ENV PATH="/app/node_modules/.bin:$PATH"
+
+# Upgrade pip
 RUN pip install --upgrade pip
 
-# These are production-only dependencies
-RUN pip install psycopg2==2.9.9
+# Install Python dependencies first (for better caching)
+COPY requirements*.txt* setup.py setup.cfg pyproject.toml* ./
+RUN pip install psycopg2-binary==2.9.9
 
-# Copy the code
-COPY . /app
+# Copy application code
+COPY . .
 
-# Install python requirements
+# Install application
 RUN pip install -e .
 
-# Compile static assets.
-RUN python manage.py compilescss
-# Note that we ignore 'docs' directories because some components have badly formed docs CSS.
-RUN python manage.py collectstatic --noinput -i docs -i \*.scss 2>&1
+# Set environment variables for Azure App Service
+ENV PORT=8000
+ENV DJANGO_SETTINGS_MODULE=indigo.settings
+ENV PYTHONPATH=/app
 
-CMD python manage.py
+# Verify sass installation and compile SCSS
+RUN which sass && sass --version
+RUN python manage.py compilescss
+
+# Collect static files
+RUN python manage.py collectstatic --noinput -i docs -i \*.scss
+
+# Create non-root user for security (Azure App Service best practice)
+RUN useradd --create-home --shell /bin/bash app \
+    && chown -R app:app /app
+USER app
+
+# Expose port for Azure App Service
+EXPOSE 8000
+
+# Use gunicorn for production (recommended for Azure App Service)
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "indigo.wsgi:application"]
