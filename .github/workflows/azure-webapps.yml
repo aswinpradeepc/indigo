@@ -23,7 +23,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Django collectstatic
+      - name: Run makemigrations
+        run: |
+          python manage.py makemigrations --noinput
+        env:
+          DJANGO_SETTINGS_MODULE: indigo.settings
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+
+      - name: Run migrations
+        run: |
+          python manage.py migrate --noinput
+        env:
+          DJANGO_SETTINGS_MODULE: indigo.settings
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+
+      - name: Collect static files
         run: |
           python manage.py collectstatic --noinput
         env:
