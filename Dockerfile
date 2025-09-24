@@ -48,6 +48,10 @@ ENV PATH="/app/node_modules/.bin:$PATH"
 # Upgrade pip
 RUN pip install --upgrade pip
 
+RUN apt-get update && apt-get install -y tzdata
+
+# Add this line after your other pip installs
+
 # Install Python dependencies first (for better caching)
 COPY requirements*.txt* setup.py setup.cfg pyproject.toml* ./
 RUN pip install psycopg2-binary==2.9.9
@@ -79,4 +83,5 @@ USER app
 EXPOSE 8000
 
 # Use gunicorn for production (recommended for Azure App Service)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "indigo.wsgi:application"]
+# CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "indigo.wsgi:application"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
