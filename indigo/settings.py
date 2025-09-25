@@ -435,9 +435,9 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 # Google recaptcha
 RECAPTCHA_PUBLIC_KEY = os.environ.get('RECAPTCHA_PUBLIC_KEY', '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI')
 RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY', '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe')
-if DEBUG:
-    # don't complain about the test keys
-    SILENCED_SYSTEM_CHECKS = ['django_recaptcha.recaptcha_test_key_error']
+# if DEBUG:
+# don't complain about the test keys
+SILENCED_SYSTEM_CHECKS = ['django_recaptcha.recaptcha_test_key_error']
 
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
