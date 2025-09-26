@@ -77,11 +77,10 @@ RUN python manage.py collectstatic --noinput -i docs -i \*.scss
 # Create non-root user for security (Azure App Service best practice)
 RUN useradd --create-home --shell /bin/bash app \
     && chown -R app:app /app
-USER app
 
 # Expose port for Azure App Service
 EXPOSE 8000
 
 # Use gunicorn for production (recommended for Azure App Service)
-# CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "indigo.wsgi:application"]
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "indigo.wsgi:application"]
+# CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
