@@ -576,3 +576,9 @@ FOP_FONT_PATH = os.environ.get("FOP_FONT_PATH")
 TEST_RUNNER = os.environ.get('TEST_RUNNER', 'django.test.runner.DiscoverRunner')
 # only used by xmlrunner https://github.com/xmlrunner/unittest-xml-reporting#django-support
 TEST_OUTPUT_DIR = './test-reports'
+
+# CSRF_TRUSTED_ORIGINS can be set in your .env as a comma-separated list, e.g.:
+# CSRF_TRUSTED_ORIGINS=http://localhost,http://0.0.0.0,http://127.0.0.1
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip() for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if origin.strip()
+]
